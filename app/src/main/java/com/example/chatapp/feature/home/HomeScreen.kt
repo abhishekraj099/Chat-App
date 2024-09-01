@@ -26,6 +26,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,12 +43,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.chatapp.MainActivity
 import com.example.chatapp.ui.theme.DarkGrey
+import com.google.firebase.Firebase
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current as MainActivity
+    LaunchedEffect(Unit) {
+//        Firebase.auth.currentUser?.let {
+//            context.initZegoService(
+//                appID = AppID,
+//                appSign = AppSign,
+//                userID = it.email!!,
+//                userName = it.email!!
+//            )
+//        }
+    }
     val viewModel = hiltViewModel<HomeViewModel>()
     val channels = viewModel.channels.collectAsState()
     val addChannel = remember {
@@ -72,7 +87,6 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .padding(it)
                 .fillMaxSize()
-
         ) {
             LazyColumn {
                 item {
@@ -82,7 +96,6 @@ fun HomeScreen(navController: NavController) {
                         style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Black),
                         modifier = Modifier.padding(16.dp)
                     )
-
                 }
 
                 item {
@@ -91,15 +104,10 @@ fun HomeScreen(navController: NavController) {
                         placeholder = { Text(text = "Search...") },
                         modifier = Modifier
                             .fillMaxWidth()
-
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .clip(
                                 RoundedCornerShape(40.dp)
-
-                            )
-                            .background(DarkGrey)
-                            ,
-
+                            ),
                         textStyle = TextStyle(color = Color.LightGray),
                         colors = TextFieldDefaults.colors().copy(
                             focusedContainerColor = DarkGrey,
@@ -107,30 +115,32 @@ fun HomeScreen(navController: NavController) {
                             focusedTextColor = Color.Gray,
                             unfocusedTextColor = Color.Gray,
                             focusedPlaceholderColor = Color.Gray,
-                            unfocusedLabelColor = Color.Gray,
-                            focusedIndicatorColor = Color.Gray,
+                            unfocusedPlaceholderColor = Color.Gray,
+                            focusedIndicatorColor = Color.Gray
                         ),
-
-
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Filled.Search, contentDescription = null
                             )
                         })
                 }
+
                 items(channels.value) { channel ->
                     Column {
-                        ChannelItem(channelName = channel.name) {
-                            navController.navigate("chat/${channel.id}")
-                        }
-
-
-
+                        ChannelItem(
+                            channelName = channel.name,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                            false,
+                            onClick = {
+                                navController.navigate("chat/${channel.id}&${channel.name}")
+                            },
+                            )
                     }
                 }
             }
         }
     }
+
     if (addChannel.value) {
         ModalBottomSheet(onDismissRequest = { addChannel.value = false }, sheetState = sheetState) {
             AddChannelDialog {
@@ -138,62 +148,56 @@ fun HomeScreen(navController: NavController) {
                 addChannel.value = false
             }
         }
-
-
     }
+
 }
 
 
 @Composable
-fun ChannelItem(channelName: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
+fun ChannelItem(
+    channelName: String,
+    modifier: Modifier,
+    shouldShowCallButtons: Boolean = false,
+    onClick: () -> Unit,
+
+) {
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(DarkGrey)
-            .clickable { onClick() }
-
-            ,
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box( modifier = Modifier
-            .padding(8.dp)
-            .size(70.dp)
-            .clip(CircleShape)
-            .background(Color.Yellow.copy(alpha = 0.3f))
-
-
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .clickable {
+                    onClick()
+                },
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = channelName[0].uppercase(),
-
-                color = Color.White,
-                style = TextStyle(fontSize = 35.sp),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-            Text(
-                text = channelName,
+            Box(
                 modifier = Modifier
-                    .padding(8.dp),
-                color = Color.White,
-            )
+                    .padding(8.dp)
+                    .size(70.dp)
+                    .clip(CircleShape)
+                    .background(Color.Yellow.copy(alpha = 0.3f))
 
+            ) {
+                Text(
+                    text = channelName[0].uppercase(),
+                    color = Color.White,
+                    style = TextStyle(fontSize = 35.sp),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+
+
+            Text(text = channelName, modifier = Modifier.padding(8.dp), color = Color.White)
+        }
 
     }
 }
-@Preview(showBackground = true)
-@Composable
-fun PreviewItem() {
-    ChannelItem(channelName = "Channel 1" ,{})
-}
-
-
-
-
 
 @Composable
 fun AddChannelDialog(onAddChannel: (String) -> Unit) {
@@ -201,25 +205,18 @@ fun AddChannelDialog(onAddChannel: (String) -> Unit) {
         mutableStateOf("")
     }
     Column(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(8.dp),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "Add Channel")
         Spacer(modifier = Modifier.padding(8.dp))
-        TextField(
-            value = channelName.value,
-            onValueChange = {
-                channelName.value = it
-            },
-            label = { Text(text = "Channel Name") }, singleLine = true,
-        )
+        TextField(value = channelName.value, onValueChange = {
+            channelName.value = it
+        }, label = { Text(text = "Channel Name") }, singleLine = true)
         Spacer(modifier = Modifier.padding(8.dp))
         Button(onClick = { onAddChannel(channelName.value) }, modifier = Modifier.fillMaxWidth()) {
             Text(text = "Add")
-
         }
-
-
     }
 }
